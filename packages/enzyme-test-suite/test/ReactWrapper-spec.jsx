@@ -1331,7 +1331,7 @@ describeWithDOM('mount', () => {
       ]);
     });
 
-    itIf(!REACT16, 'should throw if an exception occurs during render', () => {
+    it('should throw if an exception occurs during render', () => {
       class Trainwreck extends React.Component {
         render() {
           const { user } = this.props;
@@ -1391,6 +1391,62 @@ describeWithDOM('mount', () => {
       });
     });
 
+    it('should call componentWillReceiveProps, shouldComponentUpdate, componentWillUpdate, and componentDidUpdate with merged newProps', () => {
+      const spy = sinon.spy();
+
+      class Foo extends React.Component {
+        componentWillReceiveProps(nextProps) {
+          spy('componentWillReceiveProps', this.props, nextProps);
+        }
+
+        shouldComponentUpdate(nextProps) {
+          spy('shouldComponentUpdate', this.props, nextProps);
+          return true;
+        }
+
+        componentWillUpdate(nextProps) {
+          spy('componentWillUpdate', this.props, nextProps);
+        }
+
+        componentDidUpdate(prevProps) {
+          spy('componentDidUpdate', prevProps, this.props);
+        }
+
+        render() {
+          return (
+            <div />
+          );
+        }
+      }
+
+      const wrapper = mount(<Foo a="a" b="b" />);
+
+      wrapper.setProps({ b: 'c', d: 'e' });
+
+      expect(spy.args).to.deep.equal([
+        [
+          'componentWillReceiveProps',
+          { a: 'a', b: 'b' },
+          { a: 'a', b: 'c', d: 'e' },
+        ],
+        [
+          'shouldComponentUpdate',
+          { a: 'a', b: 'b' },
+          { a: 'a', b: 'c', d: 'e' },
+        ],
+        [
+          'componentWillUpdate',
+          { a: 'a', b: 'b' },
+          { a: 'a', b: 'c', d: 'e' },
+        ],
+        [
+          'componentDidUpdate',
+          { a: 'a', b: 'b' },
+          { a: 'a', b: 'c', d: 'e' },
+        ],
+      ]);
+    });
+
     describeIf(!REACT013, 'stateless function components', () => {
       it('should set props for a component multiple times', () => {
         const Foo = props => (
@@ -1421,6 +1477,20 @@ describeWithDOM('mount', () => {
         expect(wrapper.props().a).to.equal('a');
         expect(wrapper.props().b).to.equal('c');
         expect(wrapper.props().d).to.equal('e');
+      });
+
+      it('should pass in old context', () => {
+        const Foo = (props, context) => (
+          <div>{context.x}</div>
+        );
+        Foo.contextTypes = { x: PropTypes.string };
+
+        const context = { x: 'yolo' };
+        const wrapper = mount(<Foo x={5} />, { context });
+        expect(wrapper.first('div').text()).to.equal('yolo');
+
+        wrapper.setProps({ x: 5 }); // Just force a re-render
+        expect(wrapper.first('div').text()).to.equal('yolo');
       });
 
       itIf(!REACT16, 'should throw if an exception occurs during render', () => {
